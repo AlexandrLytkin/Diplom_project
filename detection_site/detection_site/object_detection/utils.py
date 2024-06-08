@@ -52,6 +52,7 @@ def process_image(image_feed_id):
                     confidence=float(confidence)
                 )
 
+
         result, encoded_img = cv2.imencode('.jpg', img)
         if result:
             content = ContentFile(encoded_img.tobytes(), f'processed_{image_feed.image.name}')
