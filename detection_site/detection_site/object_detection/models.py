@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 
+
 class ImageFeed(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     image = models.ImageField(upload_to='images/')
@@ -8,6 +9,7 @@ class ImageFeed(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.image.name}"
+
 
 class DetectedObject(models.Model):
     image_feed = models.ForeignKey(ImageFeed, related_name='detected_objects', on_delete=models.CASCADE)

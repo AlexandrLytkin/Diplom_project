@@ -13,6 +13,53 @@ VOC_LABELS = [
 
 
 
+def process_object_detection(image_feed_id):
+    try:
+        image_feed = ImageFeed.objects.get(id=image_feed_id)
+        image_path = image_feed.image.path
+        print(image_path)
+        #
+        from PIL import Image
+        from transformers import pipeline
+        img = Image.open(image_path)
+        classifier = pipeline("image-classification", model="Falconsai/nsfw_image_detection")
+        classifier(img)
+        img.show()
+        #
+        return True
+
+    except ImageFeed.DoesNotExist:
+        print("ImageFeed not found.")
+        return False
+
+# def process_object_detection(image_feed_id):
+#     print('Сработала process_object_detection из util.py')
+#     try:
+#         image_feed = ImageFeed.objects.get(id=image_feed_id)
+#         image_path = image_feed.image.path
+#         print(image_path)
+#         print(image_feed)
+#
+#         new_model_path = '/Users/aleksandrlytkin/Diplom_project/detection_site/detection_site/object_detection/mask_rcnn_coco.h5'
+#         # new_model_path = '/path/to/your/mask_rcnn_coco.h5'
+#
+#         segment_image = instance_segmentation()
+#         segment_image.load_model(new_model_path)
+#         segment_image.model.save('path_to_save_model', save_format='tf')
+#
+#         output_image_path = '/Users/aleksandrlytkin/Diplom_project/detection_site/detection_site/media/processed_images/processed_images/out_cat.jpeg'
+#         segment_image.segmentImage(image_path=image_path, output_image_name=output_image_path)
+#
+#         # tensorfloww
+#         DetectedObject.objects.filter(image_feed=image_feed).delete()  # Очистить существующие обнаруженные объекты для этого изображения
+#         # Сохранить обнаруженные объекты в базе данных
+#
+#         return True  # Вернуть True, если процесс детекции объектов прошел успешно
+#
+#     except ImageFeed.DoesNotExist:
+#         print("ImageFeed not found.")
+#         return False
+
 
 def process_image(image_feed_id):
     try:
@@ -43,7 +90,7 @@ def process_image(image_feed_id):
                 (startX, startY, endX, endY) = box.astype("int")
                 cv2.rectangle(img, (startX, startY), (endX, endY), (0, 255, 0), 2)
                 label = f"{class_label}: {confidence:.2f}"
-                cv2.putText(img, label, (startX+5, startY + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                cv2.putText(img, label, (startX + 5, startY + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
                 DetectedObject.objects.create(
                     image_feed=image_feed,
@@ -51,7 +98,6 @@ def process_image(image_feed_id):
                     location=f"{startX},{startY},{endX},{endY}",
                     confidence=float(confidence)
                 )
-
 
         result, encoded_img = cv2.imencode('.jpg', img)
         if result:
