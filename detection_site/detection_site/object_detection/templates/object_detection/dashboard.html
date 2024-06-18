@@ -8,7 +8,7 @@
 <div class="card mb-3">
     <div class="card-header">
         <a href="{% url 'object_detection:process_feed' feed.id %}" class="btn btn-warning">Process Image</a>
-        <a href="{% url 'object_detection:detect_objects' feed.id %}" class="btn btn-warning">Detect Objects</a>
+        <a href="{% url 'object_detection:detect_objects_other_model' feed.id %}" class="btn btn-warning">Process Image other model </a>
     </div>
     <div class="card-body">
         <a href="{{ feed.image.url }}" target="_blank">

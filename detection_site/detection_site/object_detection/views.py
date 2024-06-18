@@ -6,7 +6,7 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from .models import ImageFeed
-from .utils import process_image, process_object_detection
+from .utils import process_image, process_image_detect_other_model
 from .forms import ImageFeedForm
 
 
@@ -50,12 +50,12 @@ def dashboard(request):
     return (render(request, 'object_detection/dashboard.html', {'image_feeds': image_feeds}))
 
 @login_required
-def detect_objects(request, feed_id):
+def detect_objects_other_model(request, feed_id):
     image_feed = get_object_or_404(ImageFeed, id=feed_id, user=request.user)
 
-    # __del_duplicate_img(image_feed)
+    __del_duplicate_img(image_feed)
 
-    process_object_detection(feed_id)  # Consider handling this asynchronously
+    process_image_detect_other_model(feed_id)  # Consider handling this asynchronously
     return redirect('object_detection:dashboard')
 
 @login_required
@@ -81,8 +81,6 @@ def add_image_feed(request):
         form = ImageFeedForm()
     return render(request, 'object_detection/add_image_feed.html', {'form': form})
 
-
-# add new func
 
 
 @login_required

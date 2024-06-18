@@ -1,8 +1,12 @@
+import os
+
 import cv2
 import numpy as np
 from django.core.files.base import ContentFile
 from .models import ImageFeed, DetectedObject
-
+from transformers import DetrImageProcessor, DetrForObjectDetection
+import torch
+from PIL import Image
 
 VOC_LABELS = [
     "background", "aeroplane", "bicycle", "bird", "boat", "bottle",
@@ -12,53 +16,51 @@ VOC_LABELS = [
 ]
 
 
-
-def process_object_detection(image_feed_id):
+def process_image_detect_other_model(image_feed_id):
     try:
         image_feed = ImageFeed.objects.get(id=image_feed_id)
         image_path = image_feed.image.path
-        print(image_path)
-        #
-        from PIL import Image
-        from transformers import pipeline
-        img = Image.open(image_path)
-        classifier = pipeline("image-classification", model="Falconsai/nsfw_image_detection")
-        classifier(img)
-        img.show()
-        #
-        return True
+        image = Image.open(image_path)
 
+        processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50", revision="no_timm")
+        model = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50", revision="no_timm")
+
+        inputs = processor(images=image, return_tensors="pt")
+        outputs = model(**inputs)
+
+        target_sizes = torch.tensor([image.size[::-1]])
+        results = processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=0.9)[0]
+
+        img_with_objects = np.array(image)
+        print(img_with_objects)
+        for score, label, box in zip(results["scores"], results["labels"], results["boxes"]):
+            box = [round(i, 2) for i in box.tolist()]
+
+            object_label = model.config.id2label[label.item()]
+
+            # print(f"Detected {model.config.id2label[label.item()]} with confidence "
+            #       f"{round(score.item(), 3)} at location {box}")
+            start_x, start_y, end_x, end_y = [int(coord) for coord in box]
+            cv2.rectangle(img_with_objects, (start_x, start_y), (end_x, end_y), (0, 0, 255), 2)
+            cv2.putText(img_with_objects, object_label, (start_x, start_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (0, 0, 255), 2)
+
+            DetectedObject.objects.create(
+                image_feed=image_feed,
+                object_type=model.config.id2label[label.item()],
+                location=f"{start_x},{start_y},{end_x},{end_y}",
+                confidence=float(round(score.item(), 3))
+            )
+
+        result, encoded_img = cv2.imencode('.jpg', img_with_objects)
+        if result:
+            content = ContentFile(encoded_img.tobytes(), f'processed_{image_feed.image.name}')
+            image_feed.processed_image.save(content.name, content, save=True)
+
+        return True
     except ImageFeed.DoesNotExist:
         print("ImageFeed not found.")
         return False
-
-# def process_object_detection(image_feed_id):
-#     print('Сработала process_object_detection из util.py')
-#     try:
-#         image_feed = ImageFeed.objects.get(id=image_feed_id)
-#         image_path = image_feed.image.path
-#         print(image_path)
-#         print(image_feed)
-#
-#         new_model_path = '/Users/aleksandrlytkin/Diplom_project/detection_site/detection_site/object_detection/mask_rcnn_coco.h5'
-#         # new_model_path = '/path/to/your/mask_rcnn_coco.h5'
-#
-#         segment_image = instance_segmentation()
-#         segment_image.load_model(new_model_path)
-#         segment_image.model.save('path_to_save_model', save_format='tf')
-#
-#         output_image_path = '/Users/aleksandrlytkin/Diplom_project/detection_site/detection_site/media/processed_images/processed_images/out_cat.jpeg'
-#         segment_image.segmentImage(image_path=image_path, output_image_name=output_image_path)
-#
-#         # tensorfloww
-#         DetectedObject.objects.filter(image_feed=image_feed).delete()  # Очистить существующие обнаруженные объекты для этого изображения
-#         # Сохранить обнаруженные объекты в базе данных
-#
-#         return True  # Вернуть True, если процесс детекции объектов прошел успешно
-#
-#     except ImageFeed.DoesNotExist:
-#         print("ImageFeed not found.")
-#         return False
 
 
 def process_image(image_feed_id):
@@ -71,6 +73,7 @@ def process_image(image_feed_id):
         net = cv2.dnn.readNetFromCaffe(config_path, model_path)
 
         img = cv2.imread(image_path)
+
         if img is None:
             print("Failed to load image")
             return False
