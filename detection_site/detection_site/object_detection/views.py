@@ -5,7 +5,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
-from .models import ImageFeed
+from .models import ImageFeed, DetectionHistory
 from .utils import process_image, process_image_detect_other_model
 from .forms import ImageFeedForm
 
@@ -59,6 +59,11 @@ def detect_objects_other_model(request, feed_id):
     return redirect('object_detection:dashboard')
 
 @login_required
+def detection_history(request):
+    history = DetectionHistory.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'object_detection/detection_history.html', {'history': history})
+
+@login_required
 def process_image_feed(request, feed_id):
     image_feed = get_object_or_404(ImageFeed, id=feed_id, user=request.user)
 
@@ -89,6 +94,13 @@ def delete_image(request, image_id):
     с расширением, удаляет изображения из db и из директории проекта"""
     image = get_object_or_404(ImageFeed, id=image_id, user=request.user)  # Ensuring only the owner can delete
     __del_img(image)
+
+    DetectionHistory.objects.filter(
+        user=request.user,
+        image=image.image,
+        processed_image=image.processed_image
+    ).update(is_deleted=True)
+
     image.delete()
     return redirect('object_detection:dashboard')
 

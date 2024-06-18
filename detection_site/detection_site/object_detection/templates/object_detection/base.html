@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Object Detection Platform{% endblock %}</title>
+    <!-- Подключение шрифтов и CSS файлов -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="{% static 'css/styles.css' %}">
@@ -12,7 +13,7 @@
 </head>
 
 <body>
-
+    <!-- Начало заголовка -->
     <header>
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <a class="navbar-brand" href="{% url 'object_detection:home' %}">Object Detection</a>
@@ -22,20 +23,29 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ml-auto">
+                    <!-- Главная страница -->
                     <li class="nav-item {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
                         <a class="nav-link" href="{% url 'object_detection:home' %}" >Home</a>
                     </li>
                     {% if user.is_authenticated %}
+                    <!-- Панель управления для авторизованных пользователей -->
                     <li class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
                         <a class="nav-link" href="{% url 'object_detection:dashboard' %}">Dashboard</a>
                     </li>
+                    <!-- История обнаружений для авторизованных пользователей -->
+                    <li class="nav-item {% if request.resolver_match.url_name == 'detection_history' %}active{% endif %}">
+                        <a class="nav-link" href="{% url 'object_detection:detection_history' %}">Detection History</a>
+                    </li>
+                    <!-- Выход -->
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'object_detection:logout' %}">Logout</a>
                     </li>
                     {% else %}
+                    <!-- Вход для неавторизованных пользователей -->
                     <li class="nav-item {% if request.resolver_match.url_name == 'login' %}active{% endif %}">
                         <a class="nav-link" href="{% url 'object_detection:login' %}">Login</a>
                     </li>
+                    <!-- Регистрация для неавторизованных пользователей -->
                     <li class="nav-item {% if request.resolver_match.url_name == 'register' %}active{% endif %}">
                         <a class="nav-link" href="{% url 'object_detection:register' %}">Register</a>
                     </li>
@@ -44,11 +54,13 @@
             </div>
         </nav>
     </header>
+    <!-- Основной контент -->
     <main class="container mt-4">
 
         {% block content %}
         {% endblock %}
     </main>
+    <!-- Подключение JavaScript файлов -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
