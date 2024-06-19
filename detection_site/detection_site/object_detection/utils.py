@@ -82,7 +82,7 @@ def process_image_detect_other_model(image_feed_id):
 
 def process_image(image_feed_id):
     """Модель совершает классификацию изображения, рисует контуры на найденных объектах, сохраняет новое изображение,
-    добавляет в базу данных"""
+    добавляет в базу данных, MobileNet SSD https://github.com/chuanqi305/MobileNet-SSD"""
     try:
         image_feed = ImageFeed.objects.get(id=image_feed_id)
         image_path = image_feed.image.path
