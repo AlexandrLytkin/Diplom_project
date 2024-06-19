@@ -1,0 +1,39 @@
+{% extends 'object_detection/base.html' %}
+
+{% block content %}
+<h2>Detection History</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Original Image</th>
+            <th>Processed Image</th>
+            <th>Detect Objects</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for history_item in history %}
+        <tr>
+            <td>{{ history_item.created_at }}</td>
+            <td><img src="{{ history_item.image.url }}" alt="Original Image" style="width: 100px;"></td>
+            <td>
+                {% if history_item.processed_image %}
+                <img src="{{ history_item.processed_image.url }}" alt="Processed Image" style="width: 100px;">
+                {% else %}
+                Processing not complete
+                {% endif %}
+            </td>
+            <td>{{ history_item.detected_objects }}</td>
+            <td>
+                {% if history_item.is_deleted %}
+                Deleted
+                {% else %}
+                Active
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

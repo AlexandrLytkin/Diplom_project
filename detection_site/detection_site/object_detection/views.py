@@ -1,11 +1,12 @@
 import os
 
+from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required
-from .models import ImageFeed
-from .utils import process_image
+from .models import ImageFeed, DetectionHistory
+from .utils import process_image, process_image_detect_other_model
 from .forms import ImageFeedForm
 
 
@@ -14,6 +15,7 @@ def home(request):
 
 
 def register(request):
+    """Регистрация """
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
@@ -26,6 +28,7 @@ def register(request):
 
 
 def user_login(request):
+    """Вход пользователя"""
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
@@ -39,6 +42,7 @@ def user_login(request):
 
 @login_required
 def user_logout(request):
+    """Выход пользователя"""
     logout(request)
     return redirect('object_detection:login')
 
@@ -46,18 +50,41 @@ def user_logout(request):
 @login_required
 def dashboard(request):
     image_feeds = ImageFeed.objects.filter(user=request.user)
-    return render(request, 'object_detection/dashboard.html', {'image_feeds': image_feeds})
+    return (render(request, 'object_detection/dashboard.html', {'image_feeds': image_feeds}))
+
+
+@login_required
+def detect_objects_other_model(request, feed_id):
+    """Совершить классификацию над изображением"""
+    image_feed = get_object_or_404(ImageFeed, id=feed_id, user=request.user)
+
+    __del_duplicate_img(image_feed)
+
+    process_image_detect_other_model(feed_id)  # Consider handling this asynchronously
+    return redirect('object_detection:dashboard')
 
 
 @login_required
 def process_image_feed(request, feed_id):
+    """Совершить классификацию над изображением"""
     image_feed = get_object_or_404(ImageFeed, id=feed_id, user=request.user)
+
+    __del_duplicate_img(image_feed)
+
     process_image(feed_id)  # Consider handling this asynchronously
     return redirect('object_detection:dashboard')
 
 
 @login_required
+def detection_history(request):
+    """Добавляем историю действий"""
+    history = DetectionHistory.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'object_detection/detection_history.html', {'history': history})
+
+
+@login_required
 def add_image_feed(request):
+    """Добавить изображение"""
     if request.method == 'POST':
         form = ImageFeedForm(request.POST, request.FILES)
         if form.is_valid():
@@ -69,24 +96,57 @@ def add_image_feed(request):
         form = ImageFeedForm()
     return render(request, 'object_detection/add_image_feed.html', {'form': form})
 
+
 @login_required
 def delete_image(request, image_id):
+    """Функция удаления изображения,
+    с расширением, удаляет изображения из db и из директории проекта"""
     image = get_object_or_404(ImageFeed, id=image_id, user=request.user)  # Ensuring only the owner can delete
-    #
+    __del_img(image)
+
+    DetectionHistory.objects.filter(
+        user=request.user,
+        image=image.image,
+        processed_image=image.processed_image
+    ).update(is_deleted=True)
+
+    image.delete()
+    return redirect('object_detection:dashboard')
+
+
+def pathfinder(image):
+    """Функция создания пути для изображений
+    Получение имени файла, определение относительный путь к целевой директории пути 1 и 2,
+    Получение и Возвращение полного пути к файлу"""
     filename = str(image)
     filename = filename.split('/')[1]
+    relative_path = 'media/images/'
+    relative_path_2 = 'media/processed_images/processed_images'
+    file_path = os.path.join(os.getcwd(), relative_path, filename)
+    file_path_2 = os.path.join(os.getcwd(), relative_path_2, filename)
+    return file_path, file_path_2, filename
 
-    relative_path = 'media/images/'  # Относительный путь к целевой директории
-    relative_path_2 = 'media/processed_images/processed_images'  # Относительный путь к целевой директории
-    file_path = os.path.join(os.getcwd(), relative_path, filename)  # Получение полного пути к файлу
-    file_path_2 = os.path.join(os.getcwd(), relative_path_2, filename)  # Получение полного пути к файлу
 
-    if os.path.isfile(file_path) or os.path.isfile(file_path_2):  # Проверка, является ли файлом
-        os.remove(file_path)  # Удаление файла
-        os.remove(file_path_2)  # Удаление файла
+def __del_img(image):
+    """Дополнительная функция для удаления фото из древа проекта
+    Проверка, является ли файлом"""
+    file_path, file_path_2, filename = pathfinder(image)
+    if os.path.isfile(file_path) and os.path.isfile(file_path_2):
+        os.remove(file_path)
+        os.remove(file_path_2)
+        print(f'Файл {filename} успешно удален.')
+    elif os.path.isfile(file_path):
+        os.remove(file_path)
         print(f'Файл {filename} успешно удален.')
     else:
         print(f'Файл {filename} не найден.')
-    #
-    image.delete()
-    return redirect('object_detection:dashboard')
+
+
+def __del_duplicate_img(image):
+    """Дополнительная функция для удаления дубликата перед детекцией фото"""
+    _, file_path_2, filename = pathfinder(image)
+    if os.path.isfile(file_path_2):
+        os.remove(file_path_2)
+        print(f'Файл {filename} дубликат успешно удален.')
+    else:
+        print(f'Файл {filename} дубликат не найден.')
