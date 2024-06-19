@@ -15,6 +15,7 @@ def home(request):
 
 
 def register(request):
+    """Регистрация """
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
@@ -27,6 +28,7 @@ def register(request):
 
 
 def user_login(request):
+    """Вход пользователя"""
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
@@ -40,6 +42,7 @@ def user_login(request):
 
 @login_required
 def user_logout(request):
+    """Выход пользователя"""
     logout(request)
     return redirect('object_detection:login')
 
@@ -49,8 +52,10 @@ def dashboard(request):
     image_feeds = ImageFeed.objects.filter(user=request.user)
     return (render(request, 'object_detection/dashboard.html', {'image_feeds': image_feeds}))
 
+
 @login_required
 def detect_objects_other_model(request, feed_id):
+    """Совершить классификацию над изображением"""
     image_feed = get_object_or_404(ImageFeed, id=feed_id, user=request.user)
 
     __del_duplicate_img(image_feed)
@@ -58,13 +63,10 @@ def detect_objects_other_model(request, feed_id):
     process_image_detect_other_model(feed_id)  # Consider handling this asynchronously
     return redirect('object_detection:dashboard')
 
-@login_required
-def detection_history(request):
-    history = DetectionHistory.objects.filter(user=request.user).order_by('-created_at')
-    return render(request, 'object_detection/detection_history.html', {'history': history})
 
 @login_required
 def process_image_feed(request, feed_id):
+    """Совершить классификацию над изображением"""
     image_feed = get_object_or_404(ImageFeed, id=feed_id, user=request.user)
 
     __del_duplicate_img(image_feed)
@@ -74,7 +76,15 @@ def process_image_feed(request, feed_id):
 
 
 @login_required
+def detection_history(request):
+    """Добавляем историю действий"""
+    history = DetectionHistory.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'object_detection/detection_history.html', {'history': history})
+
+
+@login_required
 def add_image_feed(request):
+    """Добавить изображение"""
     if request.method == 'POST':
         form = ImageFeedForm(request.POST, request.FILES)
         if form.is_valid():
@@ -85,7 +95,6 @@ def add_image_feed(request):
     else:
         form = ImageFeedForm()
     return render(request, 'object_detection/add_image_feed.html', {'form': form})
-
 
 
 @login_required

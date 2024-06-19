@@ -17,11 +17,14 @@ VOC_LABELS = [
 
 
 def process_image_detect_other_model(image_feed_id):
+    """Модель совершает классификацию изображения, рисует контуры на найденных объектах, сохраняет новое изображение,
+    добавляет в базу данных, https://huggingface.co/facebook/detr-resnet-50"""
     try:
+        # получение объекта изображения, определение пути, представление его в виде Image библиотеки PIL
         image_feed = ImageFeed.objects.get(id=image_feed_id)
         image_path = image_feed.image.path
         image = Image.open(image_path)
-
+        # пред обученная модель
         processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50", revision="no_timm")
         model = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50", revision="no_timm")
 
@@ -30,23 +33,25 @@ def process_image_detect_other_model(image_feed_id):
 
         target_sizes = torch.tensor([image.size[::-1]])
         results = processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=0.9)[0]
-
+        # представление изображения в np матрице
         img_with_objects = np.array(image)
-
+        # пустой список для моделей
         detected_objects = []
-
+        # работа над изображением
         for score, label, box in zip(results["scores"], results["labels"], results["boxes"]):
             box = [round(i, 2) for i in box.tolist()]
-
+            # лейбл модели
             object_label = model.config.id2label[label.item()]
 
             # print(f"Detected {model.config.id2label[label.item()]} with confidence "
             #       f"{round(score.item(), 3)} at location {box}")
-            start_x, start_y, end_x, end_y = [int(coord) for coord in box]
-            cv2.rectangle(img_with_objects, (start_x, start_y), (end_x, end_y), (0, 0, 255), 2)
-            cv2.putText(img_with_objects, object_label, (start_x, start_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                        (0, 0, 255), 2)
 
+            # рисуем квадрат и надпись на изображении
+            start_x, start_y, end_x, end_y = [int(coord) for coord in box]
+            cv2.rectangle(img_with_objects, (start_x, start_y), (end_x, end_y), (255, 0, 255), 2)
+            cv2.putText(img_with_objects, object_label, (start_x, start_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (255, 0, 255), 2)
+            # добавляем модель детекции в бд
             detected_object = DetectedObject.objects.create(
                 image_feed=image_feed,
                 object_type=model.config.id2label[label.item()],
@@ -54,12 +59,14 @@ def process_image_detect_other_model(image_feed_id):
                 confidence=float(round(score.item(), 3))
             )
             detected_objects.append(detected_object)
-
-        result, encoded_img = cv2.imencode('.jpg', img_with_objects)
+        # возвращаем цветовую схему в rgb
+        rgb_image = cv2.cvtColor(img_with_objects, cv2.COLOR_BGR2RGB)
+        # сохраняем изображение в нужном формате
+        result, encoded_img = cv2.imencode('.jpg', rgb_image)
         if result:
             content = ContentFile(encoded_img.tobytes(), f'processed_{image_feed.image.name}')
             image_feed.processed_image.save(content.name, content, save=True)
-
+        # добавляем модель истории в бд
         DetectionHistory.objects.create(
             user=image_feed.user,
             image=image_feed.image,
@@ -74,6 +81,8 @@ def process_image_detect_other_model(image_feed_id):
 
 
 def process_image(image_feed_id):
+    """Модель совершает классификацию изображения, рисует контуры на найденных объектах, сохраняет новое изображение,
+    добавляет в базу данных"""
     try:
         image_feed = ImageFeed.objects.get(id=image_feed_id)
         image_path = image_feed.image.path
