@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import (home, register, user_login, user_logout, dashboard, process_image_feed, add_image_feed,
-                    delete_image, detect_objects_other_model,detection_history)
+                    delete_image, detect_objects_other_model, detection_history)
 
 from django.conf import settings
 from django.conf.urls.static import static
